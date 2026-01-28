@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Expenses{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">Your Expenses</h2>
+
+    <!-- 🔍 AJAX Filters -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+            <input type="text"
+                   id="search"
+                   class="form-control"
+                   placeholder="Search category or description">
+        </div>
+
+        <div class="col-md-3">
+            <input type="date"
+                   id="start_date"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-3">
+            <input type="date"
+                   id="end_date"
+                   class="form-control">
+        </div>
+
+        <div class="col-md-2 d-grid">
+            <button id="filterBtn" class="btn btn-primary">
+                Filter
+            </button>
+        </div>
+
+    </div>
+
+    <!-- 📋 Expense Table -->
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+
+            <thead class="table-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Description</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="expenseTable">
+                {% for expense in expenses %}
+                <tr>
+                    <td>{{ expense.date|date:"M d, Y" }}</td>
+                    <td><span class="badge bg-secondary">{{ expense.category.name }}</span></td>
+                    <td class="text-danger fw-bold">₹ {{ expense.amount }}</td>
+                    <td>{{ expense.description }}</td>
+                    
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary me-1"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editModal{{ expense.id }}">
+                            Edit
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteModal{{ expense.id }}">
+                            Delete
+                        </button>
+
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+
+</div>
+
+<!-- 🔥 AJAX Script -->
+<script>
+$(document).ready(function () {
+
+    function fetchExpenses() {
+        $.ajax({
+            url: "{% url 'expense_filter_ajax' %}",
+            data: {
+                search: $("#search").val(),
+                start_date: $("#start_date").val(),
+                end_date: $("#end_date").val()
+            },
+            success: function (response) {
+                let rows = "";
+
+                if (response.expenses.length === 0) {
+                    rows = `
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                No expenses found
+                            </td>
+                        </tr>`;
+                } else {
+                    response.expenses.forEach(exp => {
+                        rows += `
+                        <tr>
+                            <td>${exp.date}</td>
+                            <td><span class="badge bg-secondary">${exp.category}</span></td>
+                            <td class="text-danger fw-bold">₹ ${exp.amount}</td>
+                            <td>${exp.description}</td>
+                            <td class="text-end">
+                                <small class="text-muted">Refresh to delete</small>
+                            </td>
+                        </tr>`;
+                    });
+                }
+
+                $("#expenseTable").html(rows);
+            }
+        });
+    }
+
+    $("#filterBtn").click(function () {
+        fetchExpenses();
+    });
+
+    $("#search").on("keyup", function () {
+        fetchExpenses();
+    });
+
+});
+</script>
+
+{% endblock %}

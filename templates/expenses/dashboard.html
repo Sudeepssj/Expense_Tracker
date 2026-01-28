@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h2 class="mb-4">Dashboard</h2>
+
+    <div class="row g-4">
+
+        <!-- Add Expense -->
+        <div class="col-12 col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">➕ Add Expense</h5>
+                    <p class="card-text">Quickly add a new expense.</p>
+                    <a href="{% url 'add_expense_get' %}" class="btn btn-primary w-100">
+                        Add Expense
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Expenses -->
+        <div class="col-12 col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">📋 View Expenses</h5>
+                    <p class="card-text">See all your expenses in one place.</p>
+                    <a href="{% url 'expense_list' %}" class="btn btn-success w-100">
+                        View Expenses
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Summary -->
+        <div class="col-12 col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">📊 Monthly Summary</h5>
+                    <p class="card-text">Analyze your monthly spending.</p>
+                    <a href="{% url 'monthly_summary' %}" class="btn btn-warning w-100">
+                        View Summary
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

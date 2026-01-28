@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Summary{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+  <h2 class="mb-4 text-center">Monthly Expense Summary</h2>
+
+  <!-- 🔍 Filter Card -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <form method="get" action="{% url 'monthly_summary' %}"
+            class="row g-3 align-items-end">
+
+        <div class="col-md-4">
+          <label class="form-label">Year</label>
+          <input type="number"
+                 name="year"
+                 class="form-control"
+                 value="{{ year }}"
+                 placeholder="2026"
+                 min="2000"
+                 max="2100">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Month</label>
+          <select name="month" class="form-select">
+            <option value="">-- Select Month --</option>
+            {% for m in months %}
+              <option value="{{ m }}" {% if month == m %}selected{% endif %}>
+                {{ m }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4 d-grid">
+          <button class="btn btn-primary">
+            Apply Filter
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- 💰 Total Amount -->
+  <div class="row mb-4">
+    <div class="col-md-4 mx-auto">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted">Total Spent</h6>
+          <h3 class="text-danger fw-bold">₹ {{ total_amount }}</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if category_summary %}
+
+  <div class="row">
+
+    <!-- 📋 Category Table -->
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold">
+          Category-wise Breakdown
+        </div>
+
+        <div class="card-body p-0">
+          <table class="table mb-0 table-striped">
+            <thead class="table-light">
+              <tr>
+                <th>Category</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in category_summary %}
+              <tr {% if forloop.first %}class="table-success fw-bold"{% endif %}>
+                <td>
+                  {{ item.category__name }}
+                  {% if forloop.first %}
+                    <span class="badge bg-success ms-2">Top</span>
+                  {% endif %}
+                </td>
+                <td class="text-danger fw-bold">
+                  ₹ {{ item.total }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 📊 Chart -->
+    <div class="col-md-6 mb-4">
+      <div class="card shadow-sm text-center">
+        <div class="card-header fw-semibold">
+          Expense Distribution
+        </div>
+        <div class="card-body">
+
+          {{ labels|json_script:"labels-data" }}
+          {{ data|json_script:"values-data" }}
+
+          <canvas id="expenseChart"
+                  style="max-width: 300px; max-height: 300px; margin:auto;">
+          </canvas>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {% else %}
+    <div class="alert alert-info text-center">
+      No expenses found for this period.
+    </div>
+  {% endif %}
+
+  <div class="text-center mt-4">
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  const labels = JSON.parse(
+      document.getElementById('labels-data').textContent
+  );
+
+  const values = JSON.parse(
+      document.getElementById('values-data').textContent
+  );
+
+  const total = values.reduce((a, b) => a + b, 0);
+
+  const ctx = document.getElementById('expenseChart');
+
+  new Chart(ctx, {
+      type: 'pie',
+      data: {
+          labels: labels,
+          datasets: [{
+              data: values,
+              backgroundColor: [
+                  '#ff6384',
+                  '#36a2eb',
+                  '#ffce56',
+                  '#4caf50',
+                  '#9c27b0',
+                  '#ff9800'
+              ],
+              hoverOffset: 12
+          }]
+      },
+      options: {
+          responsive: true,
+          animation: {
+              animateRotate: true,
+              animateScale: true,
+              duration: 1200,
+              easing: 'easeOutQuart'
+          },
+          plugins: {
+              legend: {
+                  position: 'bottom'
+              },
+              tooltip: {
+                  callbacks: {
+                      label: function(context) {
+                          const value = context.raw;
+                          const percentage = ((value / total) * 100).toFixed(1);
+                          return `₹ ${value} (${percentage}%)`;
+                      }
+                  }
+              }
+          }
+      }
+  });
+</script>
+
+{% endblock %}
