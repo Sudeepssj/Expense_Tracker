@@ -1,11 +1,13 @@
+from datetime import datetime
 from decimal import Decimal
 from django.shortcuts import redirect, render
 from django.contrib.auth.decorators import login_required
 from expenses.models import Category, Expense
 from django.db.models import Sum
 from django.http import JsonResponse
-from django.template.loader import render_to_string
 from django.db.models import Q
+
+
 
 
 @login_required
@@ -150,46 +152,30 @@ def monthly_summary_get(request):
     return render(request, 'expenses/monthly_summary.html', context)
 
 
+
+
 @login_required
 def expense_list_get(request):
-    expenses = Expense.objects.filter(user=request.user)
+    expenses = Expense.objects.filter(user=request.user).order_by('-date')
+    categories = Category.objects.all()
 
-    search = request.GET.get('search', '').strip()
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
-
-    if search:
-        expenses = expenses.filter(
-            Q(category__name__icontains=search) |
-            Q(description__icontains=search)
-        )
-
-    if start_date:
-        expenses = expenses.filter(date__gte=start_date)
-
-    if end_date:
-        expenses = expenses.filter(date__lte=end_date)
-
-    expenses = expenses.order_by('-date')
-
-    # 🔥 AJAX request
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        html = render_to_string(
-            'expenses/partials/expense_rows.html',
-            {'expenses': expenses}
-        )
-        return JsonResponse({'html': html})
-
-    return render(request, 'expenses/expense_list.html', {'expenses': expenses})
+    return render(
+        request,
+        'expenses/expense_list.html',
+        {
+            'expenses': expenses,
+            'categories': categories
+        }
+    )
 
 
 @login_required
 def expense_filter_ajax(request):
+    expenses = Expense.objects.filter(user=request.user)
+
     search = request.GET.get('search', '')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
-
-    expenses = Expense.objects.filter(user=request.user)
 
     if search:
         expenses = expenses.filter(
@@ -208,9 +194,54 @@ def expense_filter_ajax(request):
         data.append({
             'id': exp.id,
             'date': exp.date.strftime('%b %d, %Y'),
+            'raw_date': exp.date.strftime('%Y-%m-%d'),  # ✅ ADD THIS
             'category': exp.category.name,
+            'category_id': exp.category.id,
             'amount': str(exp.amount),
             'description': exp.description
         })
 
+
     return JsonResponse({'expenses': data})
+
+
+
+@login_required
+def expense_edit_ajax(request):
+    if request.method == "POST":
+        expense = Expense.objects.get(
+            id=request.POST.get("expense_id"),
+            user=request.user
+        )
+
+        expense.category_id = request.POST.get("category")
+        expense.amount = Decimal(request.POST.get("amount"))
+
+        # ✅ FIX: convert string → date object
+        expense.date = datetime.strptime(
+            request.POST.get("date"),
+            "%Y-%m-%d"
+        ).date()
+
+        expense.description = request.POST.get("description")
+        expense.save()
+
+        return JsonResponse({
+            "id": expense.id,
+            "date": expense.date.strftime('%b %d, %Y'),
+            "raw_date": expense.date.strftime('%Y-%m-%d'),
+            "category": expense.category.name,
+            "amount": str(expense.amount),
+            "description": expense.description
+        })
+
+
+@login_required
+def expense_delete_ajax(request):
+    if request.method == "POST":
+        Expense.objects.filter(
+            id=request.POST.get("expense_id"),
+            user=request.user
+        ).delete()
+
+        return JsonResponse({"success": True})

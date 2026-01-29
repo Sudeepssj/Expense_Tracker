@@ -1,138 +1,291 @@
 {% extends "base.html" %}
 {% block title %}Expenses{% endblock %}
-
 {% block content %}
-
 <div class="container mt-4">
+  <h2 class="mb-4">Your Expenses</h2>
 
-    <h2 class="mb-4">Your Expenses</h2>
+  <!-- 🔍 AJAX Filters -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <input
+        type="text"
+        id="search"
+        class="form-control"
+        placeholder="Search category or description"
+      />
+    </div>
 
-    <!-- 🔍 AJAX Filters -->
-    <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <input type="date" id="start_date" class="form-control" />
+    </div>
 
-        <div class="col-md-4">
-            <input type="text"
-                   id="search"
-                   class="form-control"
-                   placeholder="Search category or description">
-        </div>
+    <div class="col-md-3">
+      <input type="date" id="end_date" class="form-control" />
+    </div>
 
-        <div class="col-md-3">
-            <input type="date"
-                   id="start_date"
-                   class="form-control">
-        </div>
+    <div class="col-md-2 d-grid">
+      <button id="filterBtn" class="btn btn-primary">Filter</button>
+    </div>
+  </div>
 
-        <div class="col-md-3">
-            <input type="date"
-                   id="end_date"
-                   class="form-control">
-        </div>
+  <!-- 📋 Expense Table -->
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Date</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Description</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
 
-        <div class="col-md-2 d-grid">
-            <button id="filterBtn" class="btn btn-primary">
-                Filter
+      <tbody id="expenseTable">
+        {% for expense in expenses %}
+        <tr data-row-id="{{ expense.id }}">
+          <td>{{ expense.date|date:"M d, Y" }}</td>
+          <td>
+            <span class="badge bg-secondary">
+              {{ expense.category.name }}
+            </span>
+          </td>
+          <td class="text-danger fw-bold">₹ {{ expense.amount }}</td>
+          <td>{{ expense.description }}</td>
+
+          <td class="text-end">
+            <button
+              class="btn btn-sm btn-outline-primary editBtn"
+              data-id="{{ expense.id }}"
+              data-category="{{ expense.category.id }}"
+              data-amount="{{ expense.amount }}"
+              data-date="{{ expense.date|date:'Y-m-d' }}"
+              data-description="{{ expense.description }}"
+              data-bs-toggle="modal"
+              data-bs-target="#editModal"
+            >
+              Edit
             </button>
-        </div>
 
-    </div>
-
-    <!-- 📋 Expense Table -->
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-
-            <thead class="table-dark">
-                <tr>
-                    <th>Date</th>
-                    <th>Category</th>
-                    <th>Amount</th>
-                    <th>Description</th>
-                    <th class="text-end">Action</th>
-                </tr>
-            </thead>
-
-            <tbody id="expenseTable">
-                {% for expense in expenses %}
-                <tr>
-                    <td>{{ expense.date|date:"M d, Y" }}</td>
-                    <td><span class="badge bg-secondary">{{ expense.category.name }}</span></td>
-                    <td class="text-danger fw-bold">₹ {{ expense.amount }}</td>
-                    <td>{{ expense.description }}</td>
-                    
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1"
-                                data-bs-toggle="modal"
-                                data-bs-target="#editModal{{ expense.id }}">
-                            Edit
-                        </button>
-
-                        <button class="btn btn-sm btn-outline-danger"
-                                data-bs-toggle="modal"
-                                data-bs-target="#deleteModal{{ expense.id }}">
-                            Delete
-                        </button>
-
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-
-        </table>
-    </div>
-
+            <button
+              class="btn btn-sm btn-outline-danger deleteBtn"
+              data-id="{{ expense.id }}"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            No expenses found
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<!-- 🔥 AJAX Script -->
+<!-- ✏️ EDIT MODAL -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Expense</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="edit_expense_id" />
+
+        <div class="mb-3">
+          <label class="form-label">Category</label>
+          <select id="edit_category" class="form-select">
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Amount</label>
+          <input type="number" id="edit_amount" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Date</label>
+          <input type="date" id="edit_date" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea id="edit_description" class="form-control"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button class="btn btn-success" id="saveEdit">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-$(document).ready(function () {
-
+  $(function () {
+    /* ========== FILTER FUNCTION ========== */
     function fetchExpenses() {
-        $.ajax({
-            url: "{% url 'expense_filter_ajax' %}",
-            data: {
-                search: $("#search").val(),
-                start_date: $("#start_date").val(),
-                end_date: $("#end_date").val()
-            },
-            success: function (response) {
-                let rows = "";
+      $.get(
+        "{% url 'expense_filter_ajax' %}",
+        {
+          search: $("#search").val(),
+          start_date: $("#start_date").val(),
+          end_date: $("#end_date").val(),
+        },
+        function (res) {
+          let rows = "";
 
-                if (response.expenses.length === 0) {
-                    rows = `
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
-                                No expenses found
-                            </td>
-                        </tr>`;
-                } else {
-                    response.expenses.forEach(exp => {
-                        rows += `
-                        <tr>
-                            <td>${exp.date}</td>
-                            <td><span class="badge bg-secondary">${exp.category}</span></td>
-                            <td class="text-danger fw-bold">₹ ${exp.amount}</td>
-                            <td>${exp.description}</td>
-                            <td class="text-end">
-                                <small class="text-muted">Refresh to delete</small>
-                            </td>
-                        </tr>`;
-                    });
-                }
+          if (res.expenses.length === 0) {
+            rows = `
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">
+              No expenses found
+            </td>
+          </tr>`;
+          } else {
+            res.expenses.forEach((e) => {
+              rows += `
+            <tr data-row-id="${e.id}">
+              <td>${e.date}</td>
+              <td>
+                <span class="badge bg-secondary">${e.category}</span>
+              </td>
+              <td class="text-danger fw-bold">₹ ${e.amount}</td>
+              <td>${e.description}</td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary editBtn"
+                  data-id="${e.id}"
+                  data-category="${e.category_id}"
+                  data-amount="${e.amount}"
+                  data-date="${e.raw_date}"
+                  data-description="${e.description}"
+                  data-bs-toggle="modal"
+                  data-bs-target="#editModal">
+                  Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger deleteBtn"
+                  data-id="${e.id}">
+                  Delete
+                </button>
+              </td>
+            </tr>`;
+            });
+          }
 
-                $("#expenseTable").html(rows);
-            }
-        });
+          $("#expenseTable").html(rows);
+        },
+      );
     }
 
+    /* ========== FILTER BUTTON (DATE VALIDATION) ========== */
     $("#filterBtn").click(function () {
-        fetchExpenses();
+      const start = $("#start_date").val();
+      const end = $("#end_date").val();
+
+      if (start && end && start > end) {
+        alert("❌ Start date cannot be after end date");
+        return;
+      }
+
+      fetchExpenses();
     });
 
-    $("#search").on("keyup", function () {
-        fetchExpenses();
+    /* ========== LIVE SEARCH ========== */
+    $("#search").keyup(fetchExpenses);
+
+    /* ========== DELETE ========== */
+    $(document).on("click", ".deleteBtn", function () {
+      const id = $(this).data("id");
+
+      if (!confirm("Delete this expense?")) return;
+
+      $.post(
+        "{% url 'expense_delete_ajax' %}",
+        {
+          expense_id: id,
+          csrfmiddlewaretoken: "{{ csrf_token }}",
+        },
+        function () {
+          $(`tr[data-row-id="${id}"]`).fadeOut(300, function () {
+            $(this).remove();
+          });
+        },
+      );
     });
 
+    /* ========== EDIT OPEN ========== */
+    $(document).on("click", ".editBtn", function () {
+      $("#edit_expense_id").val($(this).data("id"));
+      $("#edit_category").val($(this).data("category"));
+      $("#edit_amount").val($(this).data("amount"));
+      $("#edit_date").val($(this).data("date")); // ✅ FIXED
+      $("#edit_description").val($(this).data("description"));
+    });
+
+   /* ========== SAVE EDIT ========== */
+$("#saveEdit").click(function () {
+  const id = $("#edit_expense_id").val();
+
+  $.post("{% url 'expense_edit_ajax' %}", {
+    expense_id: id,
+    category: $("#edit_category").val(),
+    amount: $("#edit_amount").val(),
+    date: $("#edit_date").val(),
+    description: $("#edit_description").val(),
+    csrfmiddlewaretoken: "{{ csrf_token }}"
+  }, function (res) {
+
+    const row = $(`tr[data-row-id="${id}"]`);
+
+    row.html(`
+      <td>${res.date}</td>
+      <td><span class="badge bg-secondary">${res.category}</span></td>
+      <td class="text-danger fw-bold">₹ ${res.amount}</td>
+      <td>${res.description}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-primary editBtn"
+          data-id="${id}"
+          data-category="${$("#edit_category").val()}"
+          data-amount="${res.amount}"
+          data-date="${res.raw_date}"
+          data-description="${res.description}"
+          data-bs-toggle="modal"
+          data-bs-target="#editModal">
+          Edit
+        </button>
+        <button class="btn btn-sm btn-outline-danger deleteBtn"
+          data-id="${id}">
+          Delete
+        </button>
+      </td>
+    `);
+
+    // ✅ SUCCESS MESSAGE
+    alert("✅ Expense updated successfully");
+
+    // ✅ AUTO CLOSE MODAL
+    bootstrap.Modal.getInstance(
+      document.getElementById("editModal")
+    ).hide();
+  });
 });
+
+    
+    
+  });
 </script>
 
 {% endblock %}

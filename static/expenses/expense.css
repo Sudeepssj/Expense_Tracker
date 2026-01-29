@@ -1,0 +1,33 @@
+.edit-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.hidden {
+    display: none;
+}
+
+.edit-modal-content {
+    background: #fff;
+    padding: 20px;
+    width: 400px;
+    border-radius: 8px;
+}
+
+.edit-modal-content input,
+.edit-modal-content select,
+.edit-modal-content textarea {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 6px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: space-between;
+}
