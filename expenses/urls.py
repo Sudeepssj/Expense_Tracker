@@ -21,6 +21,8 @@ urlpatterns = [
     path('expenses/edit/', views.expense_edit_ajax, name='expense_edit_ajax'),
     path('expenses/delete/', views.expense_delete_ajax, name='expense_delete_ajax'),
 
+    path("summary/ajax/", views.monthly_summary_ajax, name="monthly_summary_ajax"),
+
 
 ]
     

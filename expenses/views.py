@@ -10,6 +10,7 @@ from django.db.models import Q
 
 
 
+
 @login_required
 def dashboard(request):
     return render(request, 'expenses/dashboard.html')
@@ -205,6 +206,9 @@ def expense_filter_ajax(request):
     return JsonResponse({'expenses': data})
 
 
+from datetime import datetime
+from decimal import Decimal
+from django.http import JsonResponse
 
 @login_required
 def expense_edit_ajax(request):
@@ -217,7 +221,7 @@ def expense_edit_ajax(request):
         expense.category_id = request.POST.get("category")
         expense.amount = Decimal(request.POST.get("amount"))
 
-        # ✅ FIX: convert string → date object
+        # ✅ convert string → date object
         expense.date = datetime.strptime(
             request.POST.get("date"),
             "%Y-%m-%d"
@@ -227,13 +231,14 @@ def expense_edit_ajax(request):
         expense.save()
 
         return JsonResponse({
+            "success": True,
             "id": expense.id,
             "date": expense.date.strftime('%b %d, %Y'),
-            "raw_date": expense.date.strftime('%Y-%m-%d'),
             "category": expense.category.name,
             "amount": str(expense.amount),
             "description": expense.description
         })
+
 
 
 @login_required
@@ -245,3 +250,39 @@ def expense_delete_ajax(request):
         ).delete()
 
         return JsonResponse({"success": True})
+
+
+
+@login_required
+def monthly_summary_ajax(request):
+    year = request.GET.get("year")
+    month = request.GET.get("month")
+
+    expenses = Expense.objects.filter(user=request.user)
+
+    if year:
+        expenses = expenses.filter(date__year=year)
+
+    if month:
+        expenses = expenses.filter(date__month=month)
+
+    total_amount = expenses.aggregate(total=Sum("amount"))["total"] or 0
+
+    category_summary = expenses.values(
+        "category__name"
+    ).annotate(
+        total=Sum("amount")
+    ).order_by("-total")
+
+    labels = []
+    values = []
+
+    for item in category_summary:
+        labels.append(item["category__name"])
+        values.append(float(item["total"]))
+
+    return JsonResponse({
+        "total": float(total_amount),
+        "labels": labels,
+        "values": values
+    })

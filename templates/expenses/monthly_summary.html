@@ -1,48 +1,45 @@
 {% extends "base.html" %}
-
 {% block title %}Monthly Summary{% endblock %}
-
 {% block content %}
 
 <div class="container mt-4">
-
   <h2 class="mb-4 text-center">Monthly Expense Summary</h2>
 
   <!-- 🔍 Filter Card -->
   <div class="card mb-4 shadow-sm">
     <div class="card-body">
-      <form method="get" action="{% url 'monthly_summary' %}"
-            class="row g-3 align-items-end">
+      <form id="summaryFilter" class="row g-3 align-items-end">
+        <!-- action="{% url 'monthly_summary' %}" -->
 
         <div class="col-md-4">
           <label class="form-label">Year</label>
-          <input type="number"
-                 name="year"
-                 class="form-control"
-                 value="{{ year }}"
-                 placeholder="2026"
-                 min="2000"
-                 max="2100">
+          <input
+            type="number"
+            name="year"
+            class="form-control"
+            value="{{ year }}"
+            placeholder="2026"
+            min="2000"
+            max="2100"
+          />
         </div>
 
         <div class="col-md-4">
           <label class="form-label">Month</label>
           <select name="month" class="form-select">
-            <option value="">-- Select Month --</option>
-            {% for m in months %}
-              <option value="{{ m }}" {% if month == m %}selected{% endif %}>
-                {{ m }}
-              </option>
-            {% endfor %}
+              <option value="">-- Select Month --</option>
+              {% for m in months %}
+                  <option value="{{ m }}" {% if month and month == m %}selected{% endif %}>
+                      {{ m }}
+                  </option>
+              {% endfor %}
           </select>
+
         </div>
 
         <div class="col-md-4 d-grid">
-          <button class="btn btn-primary">
-            Apply Filter
-          </button>
+          <button class="btn btn-primary">Apply Filter</button>
         </div>
-
       </form>
     </div>
   </div>
@@ -62,13 +59,10 @@
   {% if category_summary %}
 
   <div class="row">
-
     <!-- 📋 Category Table -->
     <div class="col-md-6 mb-4">
       <div class="card shadow-sm">
-        <div class="card-header fw-semibold">
-          Category-wise Breakdown
-        </div>
+        <div class="card-header fw-semibold">Category-wise Breakdown</div>
 
         <div class="card-body p-0">
           <table class="table mb-0 table-striped">
@@ -80,50 +74,55 @@
             </thead>
             <tbody>
               {% for item in category_summary %}
-              <tr {% if forloop.first %}class="table-success fw-bold"{% endif %}>
+              <tr
+                {%
+                if
+                forloop.first
+                %}class="table-success fw-bold"
+                {%
+                endif
+                %}
+              >
                 <td>
-                  {{ item.category__name }}
-                  {% if forloop.first %}
-                    <span class="badge bg-success ms-2">Top</span>
+                  {{ item.category__name }} {% if forloop.first %}
+                  <span class="badge bg-success ms-2">Top</span>
                   {% endif %}
                 </td>
-                <td class="text-danger fw-bold">
-                  ₹ {{ item.total }}
-                </td>
+                <td class="text-danger fw-bold">₹ {{ item.total }}</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
 
     <!-- 📊 Chart -->
     <div class="col-md-6 mb-4">
       <div class="card shadow-sm text-center">
-        <div class="card-header fw-semibold">
-          Expense Distribution
-        </div>
+        <div class="card-header fw-semibold">Expense Distribution</div>
         <div class="card-body">
+          {{ labels|json_script:"labels-data" }} {{ data|json_script:"values-data" }}
+          <div class="text-end mb-2">
+            <button class="btn btn-sm btn-outline-secondary" id="toggleChart">
+              Switch to Bar Chart
+            </button>
+          </div>
 
-          {{ labels|json_script:"labels-data" }}
-          {{ data|json_script:"values-data" }}
+          <div class="chart-container">
+              <canvas id="expenseChart"></canvas>
+          </div>
 
-          <canvas id="expenseChart"
-                  style="max-width: 300px; max-height: 300px; margin:auto;">
-          </canvas>
 
         </div>
       </div>
     </div>
-
   </div>
 
   {% else %}
-    <div class="alert alert-info text-center">
-      No expenses found for this period.
-    </div>
+  <div class="alert alert-info text-center">
+    No expenses found for this period.
+  </div>
   {% endif %}
 
   <div class="text-center mt-4">
@@ -131,65 +130,166 @@
       ← Back to Dashboard
     </a>
   </div>
-
 </div>
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-  const labels = JSON.parse(
-      document.getElementById('labels-data').textContent
-  );
+  let chartType = "pie";
+  let expenseChart;
 
-  const values = JSON.parse(
-      document.getElementById('values-data').textContent
-  );
+  const ctx = document.getElementById("expenseChart");
 
-  const total = values.reduce((a, b) => a + b, 0);
+  function createChart(labels, values) {
 
-  const ctx = document.getElementById('expenseChart');
+    if (expenseChart) {
+        expenseChart.destroy();
+    }
 
-  new Chart(ctx, {
-      type: 'pie',
-      data: {
-          labels: labels,
-          datasets: [{
-              data: values,
-              backgroundColor: [
-                  '#ff6384',
-                  '#36a2eb',
-                  '#ffce56',
-                  '#4caf50',
-                  '#9c27b0',
-                  '#ff9800'
-              ],
-              hoverOffset: 12
-          }]
-      },
-      options: {
-          responsive: true,
-          animation: {
-              animateRotate: true,
-              animateScale: true,
-              duration: 1200,
-              easing: 'easeOutQuart'
-          },
-          plugins: {
-              legend: {
-                  position: 'bottom'
-              },
-              tooltip: {
-                  callbacks: {
-                      label: function(context) {
-                          const value = context.raw;
-                          const percentage = ((value / total) * 100).toFixed(1);
-                          return `₹ ${value} (${percentage}%)`;
-                      }
-                  }
-              }
-          }
+    expenseChart = new Chart(ctx, {
+        type: chartType,
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Amount",
+                data: values,
+                backgroundColor: [
+                    "#ff6384",
+                    "#36a2eb",
+                    "#ffce56",
+                    "#4caf50",
+                    "#9c27b0",
+                    "#ff9800",
+                ],
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,  // 🔥 IMPORTANT
+            plugins: {
+                legend: {
+                    display: chartType === "pie",
+                    position: "top"
+                }
+            },
+            scales: chartType === "bar" ? {
+                y: {
+                    beginAtZero: true
+                }
+            } : {}
+        },
+    });
+}
+
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const labelsElement = document.getElementById("labels-data");
+    const valuesElement = document.getElementById("values-data");
+
+    if (labelsElement && valuesElement) {
+        const labels = JSON.parse(labelsElement.textContent);
+        const values = JSON.parse(valuesElement.textContent);
+
+        createChart(labels, values);
+    }
+
+});
+</script>
+
+
+<!-- Add Count-Up Animation -->
+<script>
+  function animateCounter(target, start, end, duration) {
+    if (start === end) {
+      target.textContent = "₹ " + end.toLocaleString();
+      return;
+    }
+
+    let range = end - start;
+    let current = start;
+    let increment = range / (duration / 16);
+
+    function updateCounter() {
+      current += increment;
+
+      if (
+        (increment > 0 && current >= end) ||
+        (increment < 0 && current <= end)
+      ) {
+        target.textContent = "₹ " + end.toLocaleString();
+      } else {
+        target.textContent = "₹ " + Math.floor(current).toLocaleString();
+        requestAnimationFrame(updateCounter);
       }
+    }
+
+    requestAnimationFrame(updateCounter);
+  }
+</script>
+
+<!-- AJAX Filter Logic -->
+<!-- AJAX Filter Logic -->
+<script>
+  $("#summaryFilter").submit(function (e) {
+    e.preventDefault();
+
+    const year = $("input[name='year']").val();
+    const month = $("select[name='month']").val();
+
+    $.get(
+      "{% url 'monthly_summary_ajax' %}",
+      {
+        year: year,
+        month: month,
+      },
+      function (res) {
+        // Animate total
+        const totalElement = document.querySelector("h3.text-danger");
+        const oldValue =
+          parseInt(totalElement.textContent.replace(/[^\d]/g, "")) || 0;
+        animateCounter(totalElement, oldValue, res.total, 800);
+
+        // Update chart
+        createChart(res.labels, res.values);
+
+        // Update category table
+        let tableRows = "";
+        res.labels.forEach((label, index) => {
+          const isTop = index === 0;
+
+          tableRows += `
+            <tr class="${isTop ? "table-success fw-bold" : ""}">
+                <td>
+                    ${label}
+                    ${isTop ? '<span class="badge bg-success ms-2">Top</span>' : ""}
+                </td>
+                <td class="text-danger fw-bold">
+                    ₹ ${res.values[index]}
+                </td>
+            </tr>
+        `;
+        });
+
+        // ⚠ IMPORTANT — update only summary table body
+        $(".card-body table tbody").html(tableRows);
+      },
+    );
+  });
+</script>
+
+<!-- // Chart Toggle Logic -->
+<script>
+  $("#toggleChart").click(function () {
+    chartType = chartType === "pie" ? "bar" : "pie";
+    $(this).text(
+      chartType === "pie" ? "Switch to Bar Chart" : "Switch to Pie Chart",
+    );
+
+    $("#summaryFilter").submit();
   });
 </script>
 

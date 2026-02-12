@@ -135,34 +135,31 @@
 </div>
 
 <script>
-  $(function () {
-    /* ========== FILTER FUNCTION ========== */
-    function fetchExpenses() {
-      $.get(
-        "{% url 'expense_filter_ajax' %}",
-        {
-          search: $("#search").val(),
-          start_date: $("#start_date").val(),
-          end_date: $("#end_date").val(),
-        },
-        function (res) {
-          let rows = "";
+$(function () {
 
-          if (res.expenses.length === 0) {
-            rows = `
+  /* ========== FILTER ========== */
+  function fetchExpenses() {
+    $.get("{% url 'expense_filter_ajax' %}", {
+      search: $("#search").val(),
+      start_date: $("#start_date").val(),
+      end_date: $("#end_date").val()
+    }, function (res) {
+
+      let rows = "";
+
+      if (res.expenses.length === 0) {
+        rows = `
           <tr>
             <td colspan="5" class="text-center text-muted py-4">
               No expenses found
             </td>
           </tr>`;
-          } else {
-            res.expenses.forEach((e) => {
-              rows += `
+      } else {
+        res.expenses.forEach(e => {
+          rows += `
             <tr data-row-id="${e.id}">
               <td>${e.date}</td>
-              <td>
-                <span class="badge bg-secondary">${e.category}</span>
-              </td>
+              <td><span class="badge bg-secondary">${e.category}</span></td>
               <td class="text-danger fw-bold">₹ ${e.amount}</td>
               <td>${e.description}</td>
               <td class="text-end">
@@ -170,7 +167,7 @@
                   data-id="${e.id}"
                   data-category="${e.category_id}"
                   data-amount="${e.amount}"
-                  data-date="${e.raw_date}"
+                  data-date="${e.raw_date || ''}"
                   data-description="${e.description}"
                   data-bs-toggle="modal"
                   data-bs-target="#editModal">
@@ -182,60 +179,54 @@
                 </button>
               </td>
             </tr>`;
-            });
-          }
-
-          $("#expenseTable").html(rows);
-        },
-      );
-    }
-
-    /* ========== FILTER BUTTON (DATE VALIDATION) ========== */
-    $("#filterBtn").click(function () {
-      const start = $("#start_date").val();
-      const end = $("#end_date").val();
-
-      if (start && end && start > end) {
-        alert("❌ Start date cannot be after end date");
-        return;
+        });
       }
 
-      fetchExpenses();
+      $("#expenseTable").html(rows);
     });
+  }
 
-    /* ========== LIVE SEARCH ========== */
-    $("#search").keyup(fetchExpenses);
+  $("#filterBtn").click(function () {
+    const start = $("#start_date").val();
+    const end = $("#end_date").val();
 
-    /* ========== DELETE ========== */
-    $(document).on("click", ".deleteBtn", function () {
-      const id = $(this).data("id");
+    if (start && end && start > end) {
+      showToast("Start date cannot be after end date", "danger");
+      return;
+    }
 
-      if (!confirm("Delete this expense?")) return;
+    fetchExpenses();
+  });
 
-      $.post(
-        "{% url 'expense_delete_ajax' %}",
-        {
-          expense_id: id,
-          csrfmiddlewaretoken: "{{ csrf_token }}",
-        },
-        function () {
-          $(`tr[data-row-id="${id}"]`).fadeOut(300, function () {
-            $(this).remove();
-          });
-        },
-      );
+  $("#search").keyup(fetchExpenses);
+
+  /* ========== DELETE ========== */
+  $(document).on("click", ".deleteBtn", function () {
+    const id = $(this).data("id");
+
+    if (!confirm("Delete this expense?")) return;
+
+    $.post("{% url 'expense_delete_ajax' %}", {
+      expense_id: id,
+      csrfmiddlewaretoken: "{{ csrf_token }}"
+    }, function () {
+      $(`tr[data-row-id="${id}"]`).fadeOut(300, function () {
+        $(this).remove();
+      });
     });
+  });
 
-    /* ========== EDIT OPEN ========== */
-    $(document).on("click", ".editBtn", function () {
-      $("#edit_expense_id").val($(this).data("id"));
-      $("#edit_category").val($(this).data("category"));
-      $("#edit_amount").val($(this).data("amount"));
-      $("#edit_date").val($(this).data("date")); // ✅ FIXED
-      $("#edit_description").val($(this).data("description"));
-    });
+  /* ========== EDIT OPEN ========== */
+  $(document).on("click", ".editBtn", function () {
+    $("#edit_expense_id").val($(this).data("id"));
+    $("#edit_category").val($(this).data("category"));
+    $("#edit_amount").val($(this).data("amount"));
+    $("#edit_date").val($(this).data("date"));
+    $("#edit_description").val($(this).data("description"));
+  });
 
-   /* ========== SAVE EDIT ========== */
+  /* ========== SAVE EDIT ========== */
+  
 $("#saveEdit").click(function () {
   const id = $("#edit_expense_id").val();
 
@@ -248,8 +239,10 @@ $("#saveEdit").click(function () {
     csrfmiddlewaretoken: "{{ csrf_token }}"
   }, function (res) {
 
-    const row = $(`tr[data-row-id="${id}"]`);
+    if (!res.success) return;
 
+    // ✅ Update row instantly
+    const row = $(`tr[data-row-id="${id}"]`);
     row.html(`
       <td>${res.date}</td>
       <td><span class="badge bg-secondary">${res.category}</span></td>
@@ -260,7 +253,7 @@ $("#saveEdit").click(function () {
           data-id="${id}"
           data-category="${$("#edit_category").val()}"
           data-amount="${res.amount}"
-          data-date="${res.raw_date}"
+          data-date="${$("#edit_date").val()}"
           data-description="${res.description}"
           data-bs-toggle="modal"
           data-bs-target="#editModal">
@@ -273,19 +266,42 @@ $("#saveEdit").click(function () {
       </td>
     `);
 
-    // ✅ SUCCESS MESSAGE
-    alert("✅ Expense updated successfully");
+    // ✅ PROPERLY close modal
+    const modalEl = document.getElementById("editModal");
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    modalInstance.hide();
 
-    // ✅ AUTO CLOSE MODAL
-    bootstrap.Modal.getInstance(
-      document.getElementById("editModal")
-    ).hide();
+    // ✅ FORCE CLEANUP (THIS FIXES GREY SCREEN)
+    setTimeout(() => {
+      $(".modal-backdrop").remove();
+      $("body").removeClass("modal-open").css("padding-right", "");
+    }, 300);
+
+    // ✅ Show success toast
+    showToast("Expense updated successfully ✔", "success");
   });
 });
 
-    
-    
-  });
+
+  /* ========== TOAST MESSAGE ========== */
+  function showToast(message, type) {
+    const toast = $(`
+      <div class="toast align-items-center text-bg-${type} border-0 position-fixed bottom-0 end-0 m-3" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
+    `);
+
+    $("body").append(toast);
+    new bootstrap.Toast(toast[0], { delay: 2000 }).show();
+
+    setTimeout(() => toast.remove(), 2500);
+  }
+
+});
 </script>
+
 
 {% endblock %}
